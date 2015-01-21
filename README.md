@@ -1,4 +1,4 @@
-Prerender Service [![Stories in Ready](https://badge.waffle.io/prerender/prerender.png?label=ready&title=Ready)](https://waffle.io/prerender/prerender)
+Prerender Service
 ===========================
 
 Google, Facebook, Twitter, Yahoo, and Bing are constantly trying to view your website... but they don't execute javascript. That's why we built Prerender. Prerender is perfect for AngularJS SEO, BackboneJS SEO, EmberJS SEO, and any other javascript framework.
@@ -15,6 +15,60 @@ Prerender adheres to google's `_escaped_fragment_` proposal, which we recommend 
 Prerender includes lots of plugins, for example using Amazon S3 to [cache your prerendered HTML](#s3-html-cache).  
 Prerender also starts multiple phantomjs processes to maximize throughput.
 
+
+### Nginx Config
+
+```
+
+	location @php {
+		#proxy_set_header X-Prerender-Token YOUR_TOKEN;
+		
+		set $prerender 0;
+		
+		if ($http_user_agent ~* "baiduspider|twitterbot|facebookexternalhit|rogerbot|linkedinbot|embedly|quora link preview|showyoubot|outbrain|pinterest|slackbot") {
+			set $prerender 1;
+		}
+		
+		if ($args ~ "_escaped_fragment_") {
+			set $prerender 1;
+		}
+		
+		if ($http_user_agent ~ "Prerender") {
+			set $prerender 0;
+		}
+		
+		if ($uri ~ "\.(js|css|xml|less|png|jpg|jpeg|gif|pdf|doc|txt|ico|rss|zip|mp3|rar|exe|wmv|doc|avi|ppt|mpg|mpeg|tif|wav|mov|psd|ai|xls|mp4|m4a|swf|dat|dmg|iso|flv|m4v|torrent)") {
+			set $prerender 0;
+		}
+		
+		#resolve using Google's DNS server to force DNS resolution and prevent caching of IPs
+		#resolver 8.8.8.8;
+		
+		if ($prerender = 1) {
+			
+			#setting prerender as a variable forces DNS resolution since nginx caches IPs and doesnt play well with load balancing
+			set $prerender "127.0.0.1:3000";
+			rewrite .* /$scheme://$host$request_uri? break;
+			proxy_pass http://$prerender;
+		}
+		
+		if ($prerender = 0) {
+			rewrite .* /index.php break;
+		}
+		
+		include fastcgi_params;
+		fastcgi_pass sport1_newsportal;
+		fastcgi_buffers 16 128k; 
+		fastcgi_buffer_size 128k;
+		fastcgi_param SCRIPT_FILENAME $document_root/index_dev.php; 
+		# fastcgi_param SCRIPT_FILENAME index_dev.php; 
+		# fastcgi_param ENVIRONMENT prod;
+		fastcgi_param ENVIRONMENT dev;
+		fastcgi_param USE_AUTOLOAD true;
+		fastcgi_param USE_ZEND_ALLOC 0;
+	}
+        
+```
 
 ### <a id='middleware'></a>
 ## Middleware
@@ -236,6 +290,7 @@ Caches pages in a MongoDB database. Available at [prerender-mongodb-cache](https
 ### memjsCache
 
 Caches pages in a memjs(memcache) service. Available at [prerender-memjs-cache](https://github.com/lammertw/prerender-memjs-cache) by [@lammertw](https://github.com/lammertw)
+
 
 
 ## License
